@@ -1,0 +1,63 @@
+name: Build and deploy Vite app to Azure Web App - everpower
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22.x'
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
+
+      - name: Upload production-ready files
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-build
+          path: dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vite-build
+          path: dist
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C59BE38A42A14BAB87D264C0FF5DD338 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C4DF5C28999D4E41AA7BE68CF32331E2 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_9B27DB35B8C6473E9F53748A9951BB3D }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'everpower'
+          slot-name: 'Production'
+          package: dist
