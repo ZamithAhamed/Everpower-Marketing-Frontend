@@ -395,7 +395,7 @@ const PaymentManagement: React.FC = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Payments</dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ${totalAmount.toLocaleString()}
+                    LKR {totalAmount.toLocaleString()}
                   </dd>
                 </dl>
               </div>
@@ -413,7 +413,7 @@ const PaymentManagement: React.FC = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ${completedAmount.toLocaleString()}
+                    LKR {completedAmount.toLocaleString()}
                   </dd>
                 </dl>
               </div>
@@ -431,7 +431,7 @@ const PaymentManagement: React.FC = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ${pendingAmount.toLocaleString()}
+                    LKR {pendingAmount.toLocaleString()}
                   </dd>
                 </dl>
               </div>
@@ -555,7 +555,7 @@ const PaymentManagement: React.FC = () => {
                       {payment.clientName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${payment.amount.toLocaleString()}
+                      LKR {payment.amount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getMethodColor(payment.paymentMethod)}`}>
@@ -854,7 +854,7 @@ const PaymentManagement: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Amount:</span>
-                  <span>${selectedPayment.amount.toLocaleString()}</span>
+                  <span>LKR {selectedPayment.amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Payment Method:</span>
