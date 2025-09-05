@@ -11,7 +11,10 @@ import {
   DollarSign,
   LucideProps,
   X,
-  Check
+  Check,
+  CheckCircle,
+  AlertTriangle,
+  Clock
 } from 'lucide-react';
 
 // Define the type for the invoice data based on your API response
@@ -774,7 +777,7 @@ const InvoiceManagement: React.FC = () => {
             <div className="p-3">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-lg bg-green-500">
-                  <DollarSign className="h-6 w-6 text-white" />
+                  <CheckCircle className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-2 w-0 flex-1">
                   <dl>
@@ -792,7 +795,7 @@ const InvoiceManagement: React.FC = () => {
             <div className="p-3">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-lg bg-red-500">
-                  <DollarSign className="h-6 w-6 text-white" />
+                  <AlertTriangle className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-2 w-0 flex-1">
                   <dl>
@@ -809,7 +812,7 @@ const InvoiceManagement: React.FC = () => {
             <div className="p-3">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-lg bg-gray-500">
-                  <DollarSign className="h-6 w-6 text-white" />
+                  <Clock className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-2 w-0 flex-1">
                   <dl>
