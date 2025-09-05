@@ -289,18 +289,16 @@ declare global {
 // Modal for viewing invoice details
 const ViewInvoiceModal: React.FC<ViewInvoiceModalProps> = ({ show, onClose, invoice }) => {
   if (!show) return null;
+
   const qrCodeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const printableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Check if the QRCode library is loaded and the URL is available
     if (window.QRCode && invoice.stripe_hosted_url) {
       const canvas = qrCodeCanvasRef.current;
       if (canvas) {
-        // Use the QRcode library to draw on the canvas
         window.QRCode.toCanvas(canvas, invoice.stripe_hosted_url, (error: any) => {
-          if (error) {
-            console.error('Failed to generate QR code', error);
-          }
+          if (error) console.error('Failed to generate QR code', error);
         });
       }
     }
@@ -323,18 +321,80 @@ const ViewInvoiceModal: React.FC<ViewInvoiceModalProps> = ({ show, onClose, invo
     }
   };
 
+  const handlePrint = () => {
+    const node = printableRef.current;
+    if (!node) return;
+
+    const printWindow = window.open('', '', 'width=380,height=1000');
+    if (!printWindow) return;
+
+    // Capture canvas as image to ensure it prints reliably
+    let qrImgHTML = '';
+    if (qrCodeCanvasRef.current) {
+      try {
+        const dataUrl = qrCodeCanvasRef.current.toDataURL('image/png');
+        qrImgHTML = `<img src="${dataUrl}" alt="QR Code" style="width:140px;height:140px;border-radius:0.5rem;border:1px solid #e5e7eb"/>`;
+      } catch (e) {
+        qrImgHTML = qrCodeCanvasRef.current.outerHTML;
+      }
+    }
+
+    // Clone printable content and swap canvas with img if available
+    const clone = node.cloneNode(true) as HTMLElement;
+    const canvasInClone = clone.querySelector('canvas');
+    if (canvasInClone && qrImgHTML) {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = qrImgHTML;
+      canvasInClone.replaceWith(wrapper.firstElementChild as HTMLElement);
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice ${invoice.id}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+          <style>
+            @media print {
+              .no-print { display: none !important; }
+              body { margin: 0; padding: 0; width: 80mm; }
+            }
+            body { font-size: 12px; line-height: 1.4; max-width: 80mm; margin: auto; }
+          </style>
+        </head>
+        <body>
+          ${clone.outerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 300);
+  };
+
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative p-8 border w-full max-w-lg mx-auto shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center pb-3">
+      <div className="relative p-6 sm:p-8 border w-full max-w-lg mx-auto shadow-lg rounded-md bg-white">
+        {/* Header */}
+        <div className="flex justify-between items-center pb-3 border-b border-gray-100">
           <h3 className="text-2xl font-bold text-gray-900">Invoice Details</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrint} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 9V2h12v7M6 18h12v4H6v-4zM6 14h12a2 2 0 002-2v-1a2 2 0 00-2-2H6a2 2 0 00-2 2v1a2 2 0 002 2z" />
+              </svg>
+              Print / Save PDF
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="mt-4 space-y-4 text-sm">
+
+        {/* Printable Body */}
+        <div ref={printableRef} className="mt-4 space-y-4 text-sm">
           <div className="flex justify-between items-center">
             <span className="font-medium text-gray-700">Invoice #</span>
             <span className="text-gray-900">{invoice.id}</span>
@@ -343,17 +403,17 @@ const ViewInvoiceModal: React.FC<ViewInvoiceModalProps> = ({ show, onClose, invo
             <span className="font-medium text-gray-700">Client</span>
             <div>
               <div className="text-right text-gray-900">{nameFromEmail(invoice.client_email)}</div>
-              <div className="text-right text-gray-500">{invoice.client_email}</div>
+              <div className="text-right text-gray-500 break-words">{invoice.client_email}</div>
             </div>
           </div>
           <div className="flex justify-between items-center">
             <span className="font-medium text-gray-700">Amount</span>
-            <span className="text-right font-semibold text-gray-900">LKR {parseFloat(invoice.amount).toLocaleString()}</span>
+            <span className="text-right font-semibold text-gray-900">LKR {parseFloat(String(invoice.amount)).toLocaleString()}</span>
           </div>
-          {invoice.over_due && parseFloat(invoice.over_due) > 0 && (
+          {invoice.over_due && parseFloat(String(invoice.over_due)) > 0 && (
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-700">Due Amount</span>
-              <span className="text-lg font-semibold text-red-900">LKR {parseFloat(invoice.over_due).toLocaleString()}</span>
+              <span className="text-lg font-semibold text-red-900">LKR {parseFloat(String(invoice.over_due)).toLocaleString()}</span>
             </div>
           )}
           <div className="flex justify-between items-center">
@@ -370,19 +430,21 @@ const ViewInvoiceModal: React.FC<ViewInvoiceModalProps> = ({ show, onClose, invo
             <span className="font-medium text-gray-700">Created</span>
             <span className="text-gray-900">{new Date(invoice.created_at).toLocaleString()}</span>
           </div>
+
           {invoice.description && (
             <div>
               <p className="font-medium text-gray-700 mb-1">Description</p>
-              <p className="text-gray-900 bg-gray-50 p-3 rounded-md">{invoice.description}</p>
+              <p className="text-gray-900 bg-gray-50 p-3 rounded-md break-words whitespace-pre-wrap max-h-40 overflow-auto border border-gray-100">
+                {invoice.description}
+              </p>
             </div>
           )}
-          {/* Section to display the QR code */}
+
           {invoice.stripe_hosted_url && (
             <div className="mt-6 pt-6 border-t border-gray-200">
               <h4 className="text-lg font-medium text-center text-gray-900 mb-4">Pay Online</h4>
               <div className="flex justify-center">
-                {/* Canvas element for the QR code */}
-                {invoice.stripe_hosted_url && invoice.stripe_hosted_url.startsWith('http') ? (
+                {invoice.stripe_hosted_url && String(invoice.stripe_hosted_url).startsWith('http') ? (
                   <canvas ref={qrCodeCanvasRef} className="w-40 h-40 border rounded-md"></canvas>
                 ) : (
                   <div className="text-sm text-center text-gray-500">Online payment link not available.</div>
