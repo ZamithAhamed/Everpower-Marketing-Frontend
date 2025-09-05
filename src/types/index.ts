@@ -59,6 +59,8 @@ export type TopDebtor = {
   };
 
 export type DashboardStats = {
+    totalPendingPayments: number;
+    totalCompletedPayments: number;
     totalOutstanding: number;
     paymentsThisMonth: number;
     totalActiveInvoices: number;

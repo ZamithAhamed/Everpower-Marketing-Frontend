@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import InvoiceManagement from './InvoiceManagement';
 import UserManagement from './UserManagement';
 import PaymentManagement from './PaymentManagement';
@@ -23,6 +23,14 @@ import {
   Filter,
   Calendar
 } from 'lucide-react';
+import {
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+  Legend,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -54,7 +62,48 @@ const Dashboard: React.FC = () => {
   
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
+  const PIE_COLORS = ['#60a5fa','#34d399','#fbbf24','#f87171','#a78bfa','#f472b6','#22d3ee','#c084fc'];
+
+  // Payments by Method (from recent transactions)
+  const methodData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (recentTransactions ?? []).forEach(tx => {
+      const key = (tx.method || 'UNKNOWN').replace('_', ' ').toUpperCase();
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [recentTransactions]);
+
+  // Outstanding (top N debtors + Balance Outstanding as Others)
+  const outstandingData = useMemo(() => {
+    if (!dashboardStats?.topDebtors?.length) return [];
+    const topN = 4;
+    const sorted = [...dashboardStats.topDebtors].sort((a,b) => b.outstanding - a.outstanding);
+    const top = sorted.slice(0, topN).map(d => ({
+      name: d.clientEmail.split('@')[0],
+      value: d.outstanding,
+    }));
+
+    const totalOutstanding = dashboardStats.totalOutstanding || 0;
+    const topSum = top.reduce((acc, cur) => acc + cur.value, 0);
+    const balanceOutstanding = totalOutstanding - topSum;
+
+    return balanceOutstanding > 0 ? [...top, { name: 'Others', value: balanceOutstanding }] : top;
+  }, [dashboardStats]);
+
+  // Total Debtors (by overdue invoice count bins, from topDebtors list)
+  const financeOverview = useMemo(() => {
+    if (!dashboardStats) return [];
+
+    return [
+      { name: 'Outstanding', value: dashboardStats.totalOutstanding - dashboardStats.totalCompletedPayments - dashboardStats.totalPendingPayments },
+      { name: 'Completed Payments', value: dashboardStats.totalCompletedPayments },
+      { name: 'Pending Payments', value: dashboardStats.totalPendingPayments },
+    ].filter(d => d.value > 0);
+  }, [dashboardStats]);
+
+
   // New useEffect hook to fetch dashboard stats from the API
   useEffect(() => {
     const fetchDashboardStats = async () => {
@@ -417,6 +466,123 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Three Pie Charts: Outstanding / Total Debtors / Payment Method */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+                {/* Finance Overview */}
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Amounts (Outstanding / Completed / Pending)</h3>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const total = (financeOverview ?? []).reduce((a, b) => a + Number(b.value || 0), 0);
+                        return total > 0 ? `Total: LKR ${total.toLocaleString()}` : '';
+                      })()}
+                    </span>
+                  </div>
+
+                  {(!financeOverview || financeOverview.length === 0) ? (
+                    <div className="text-sm text-gray-500">No amounts to display.</div>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                          <Pie
+                            data={financeOverview}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={88}
+                            paddingAngle={2}
+                          >
+                            {financeOverview.map((_, idx) => (
+                              <Cell key={`amt-${idx}`} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(val: number, name: string) => [`LKR ${Number(val).toLocaleString()}`, name]}
+                          />
+                          <Legend verticalAlign="bottom" height={24} />
+                        </RePieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                {/* Outstanding */}
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Debtors</h3>
+                    <span className="text-xs text-gray-500">
+                      {dashboardStats?.totalOutstanding ? `LKR${dashboardStats.totalOutstanding.toLocaleString()}` : ''}
+                    </span>
+                  </div>
+                  {(!outstandingData || outstandingData.length === 0) ? (
+                    <div className="text-sm text-gray-500">No outstanding data.</div>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                          <Pie
+                            data={outstandingData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%" cy="50%"
+                            innerRadius={48}
+                            outerRadius={88}
+                            paddingAngle={2}
+                          >
+                            {outstandingData.map((_, idx) => (
+                              <Cell key={`o-${idx}`} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(val:number) => `LKR ${Number(val).toLocaleString()}`} />
+                          <Legend verticalAlign="bottom" height={24} />
+                        </RePieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                
+                {/* Payment Method */}
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Payment Method</h3>
+                    <span className="text-xs text-gray-500">
+                      {methodData.reduce((a,b)=>a+b.value,0)} total
+                    </span>
+                  </div>
+                  {(methodData.length === 0) ? (
+                    <div className="text-sm text-gray-500">No payment data yet.</div>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RePieChart>
+                          <Pie
+                            data={methodData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%" cy="50%"
+                            innerRadius={48}
+                            outerRadius={88}
+                            paddingAngle={2}
+                          >
+                            {methodData.map((_, idx) => (
+                              <Cell key={`m-${idx}`} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend verticalAlign="bottom" height={24} />
+                        </RePieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </div>
+
 
               {/* Recent Transactions */}
               <div className="bg-white rounded-lg shadow-sm">
